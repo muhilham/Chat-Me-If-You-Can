@@ -89,17 +89,32 @@ module.exports = function (socket) {
   // broadcast a user's message to other users
   socket.on('send:message', function (data) {
 
-    console.log(data);
+    // socket.broadcast.emit('send:message', {
+    //   user: name,
+    //   text: data.text,
+    //   targetUser: data.targetUser
+    // });
 
-    socket.broadcast.emit('send:message', {
+    // console.log(data);
+    socket.broadcast.to(data.target).emit('send:message', {
       user: name,
-      text: data.text,
-      targetUser: data.targetUser
+      text: data.text
     });
   });
 
   socket.on('request-chat', function (data) {
-    socket.broadcast.to(data.target).emit('request-chat', 'ho theree');
+
+    var namesIndex = lodash.findIndex(userNames.get(), {id: data.source});
+
+    var source = {
+      id: data.source,
+      name: userNames.get()[namesIndex].name,
+      nKey: data.target.nKey,
+      nxKey: data.target.nxKey
+    };
+
+
+    socket.broadcast.to(data.target.id).emit('request-chat', source);
   });
 
   // validate a user's name change, and broadcast it on success
@@ -119,6 +134,13 @@ module.exports = function (socket) {
     } else {
       fn(false);
     }
+  });
+
+  socket.on('approve-chat', function (data) {
+    socket.broadcast.to(data.targetId).emit('chat-approved', {
+      publicKeyApproval: data.publicKeyApproval,
+      source: socket.client.id
+    });
   });
 
   // clean up when a user leaves, and broadcast it to other users

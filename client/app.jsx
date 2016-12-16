@@ -1,23 +1,63 @@
 'use strict';
 
 var React = require('react');
+var lodash = require('lodash');
+
+var CryptoJS = require("crypto-js");
 
 var socket = io.connect();
 
+var pk = [];
+
+
+var userShared = [];
+
+var Modal = require('react-bootstrap/lib/Modal');
+var Button = require('react-bootstrap/lib/Button');
+
+function getRandomInt(min, max) {
+	return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function generatePublic(n, pk) {
+	return n * pk;
+}
+
+function generateN() {
+	return getRandomInt(21, 434);
+}
+
+function generatePK() {
+	return getRandomInt(12, 33);
+}
+
 var UsersList = React.createClass({
 	handleClick(e) {
-		// console.log('here',e.target.id);
+		var privateKey = generatePK();
+		var nKey = generateN()
 
-		socket.emit("request-chat", {
-			target: e.target.id,
+		var param = {
+			target: {
+				id: e.target.id,
+				nKey: nKey,
+				nxKey: generatePublic(privateKey, nKey)
+			},
 			source: this.props.currentUser.id
+		};
+
+		pk.push({
+			target: param.target,
+			private: privateKey
 		});
+
+		console.log(param);
+
+		socket.emit("request-chat", param);
 	},
 
 	render() {
 		var userRendered;
 
-		console.log(this.props.users);
 		return (
 			<div className='users'>
 				<h3> Online Users </h3>
@@ -148,7 +188,15 @@ var ChangeNameForm = React.createClass({
 var ChatApp = React.createClass({
 
 	getInitialState() {
-		return {users: [], messages:[], text: '', targetUser: ''};
+		return {
+			users: [],
+			messages:[],
+			text: '',
+			targetUser: '',
+			showModal: false,
+			requester: {},
+			keys: {}
+		};
 	},
 
 	componentDidMount() {
@@ -158,11 +206,32 @@ var ChatApp = React.createClass({
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
 		socket.on('change:name', this._userChangedName);
+		socket.on('chat-approved', this._approvedChat);
+	},
+
+	_approvedChat(data) {
+
+		console.log('_approvedChat' ,data);
+
+		var userApproval = lodash.filter(pk, function(userKeys){
+		  return userKeys.target.id === data.source;
+		});
+
+		console.log('sharedKey _approvedChat' , userApproval[0].private * data.publicKeyApproval);
+		userShared.push({
+			target: data.source,
+			sharedKey: userApproval[0].private * data.publicKeyApproval
+		});
+
 	},
 
 	_handleRequestChat(data) {
 		console.log(data);
-		alert('ada yg ngajak chat');
+
+		this.setState({
+			showModal: true ,
+			requester: data
+		});
 	},
 
 	_initialize(data) {
@@ -174,9 +243,23 @@ var ChatApp = React.createClass({
 	},
 
 	_messageRecieve(message) {
-		var {messages} = this.state;
-		messages.push(message);
 
+		console.log('message arrive',message);
+		var holder = this.state;
+		var holderOutput = message;
+
+		var bytes  = CryptoJS.AES.decrypt(message.text, userShared[0].sharedKey.toString());
+		var plaintext = bytes.toString(CryptoJS.enc.Utf8);
+
+		holderOutput.text = plaintext;
+		holder.text = plaintext;
+
+		var {messages} = holder;
+		messages.push(plaintext);
+
+		messages.push(holderOutput);
+
+		console.log(messages);
 		this.setState({messages});
 	},
 
@@ -215,6 +298,35 @@ var ChatApp = React.createClass({
 		this.setState({users, messages});
 	},
 
+	approve(){
+
+		var privateKeyApproval = generatePK();
+
+		var publicKeyApproval = generatePublic(privateKeyApproval, this.state.requester.nKey);
+
+		var param = {
+			publicKeyApproval: publicKeyApproval,
+			targetId: this.state.requester.id
+		};
+
+		console.log('approval sharedKey ' , privateKeyApproval * this.state.requester.nxKey);
+		userShared.push({
+			target: this.state.requester.id,
+			sharedKey: privateKeyApproval * this.state.requester.nxKey
+		});
+
+		console.log('param approval ',param);
+		socket.emit("approve-chat", param);
+    this.setState({
+			showModal: false ,
+			keys: param
+		});
+  },
+
+	reject(){
+    this.setState({ showModal: false });
+  },
+
 	handleMessageSubmit(message) {
 
 		var {messages} = this.state;
@@ -223,8 +335,13 @@ var ChatApp = React.createClass({
 		messages.push(message);
 		this.setState({messages});
 
+		var ciphertext = CryptoJS.AES.encrypt(message.text, userShared[0].sharedKey.toString());
 
-		socket.emit('send:message', message);
+		socket.emit('send:message', {
+			text: ciphertext.toString(),
+			target: userShared[0].target,
+			user: message.user
+		});
 	},
 
 	handleChangeName(newName) {
@@ -244,6 +361,20 @@ var ChatApp = React.createClass({
 
 		return (
 			<div>
+
+				<Modal show={this.state.showModal} onHide={this.close}>
+          <Modal.Header closeButton>
+            <Modal.Title>Request To Chat</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {this.state.requester.name} is asking to chat.
+          </Modal.Body>
+          <Modal.Footer>
+            <Button onClick={this.approve}>Approve</Button>
+            <Button onClick={this.reject}>Reject</Button>
+          </Modal.Footer>
+        </Modal>
+
 				<UsersList
 					users={this.state.users} currentUser={this.state.user}
 				/>
@@ -255,9 +386,7 @@ var ChatApp = React.createClass({
 					user={this.state.user}
 
 				/>
-				<ChangeNameForm
-					onChangeName={this.handleChangeName}
-				/>
+
 			</div>
 		);
 	}
