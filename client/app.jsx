@@ -5,32 +5,53 @@ var React = require('react');
 var socket = io.connect();
 
 var UsersList = React.createClass({
+	handleClick(e) {
+		// console.log('here',e.target.id);
+
+		socket.emit("request-chat", {
+			target: e.target.id,
+			source: this.props.currentUser.id
+		});
+	},
+
 	render() {
+		var userRendered;
+
+		console.log(this.props.users);
 		return (
 			<div className='users'>
 				<h3> Online Users </h3>
 				<ul>
 					{
 						this.props.users.map((user, i) => {
+
+							if (user.id === this.props.currentUser.id) {
+								return (
+									<li key={user.id}>
+										{user.name}
+									</li>
+								);
+							}
 							return (
-								<li key={i}>
-									{user}
+								<li key={user.id}>
+									<a href="#" id={user.id} onClick={this.handleClick}>{user.name}</a>
 								</li>
 							);
 						})
 					}
-				</ul>				
+				</ul>
 			</div>
 		);
 	}
 });
 
+
 var Message = React.createClass({
 	render() {
 		return (
 			<div className="message">
-				<strong>{this.props.user} :</strong> 
-				<span>{this.props.text}</span>		
+				<strong>{this.props.user} :</strong>
+				<span>{this.props.text}</span>
 			</div>
 		);
 	}
@@ -47,11 +68,11 @@ var MessageList = React.createClass({
 							<Message
 								key={i}
 								user={message.user}
-								text={message.text} 
+								text={message.text}
 							/>
 						);
 					})
-				} 
+				}
 			</div>
 		);
 	}
@@ -66,10 +87,11 @@ var MessageForm = React.createClass({
 	handleSubmit(e) {
 		e.preventDefault();
 		var message = {
-			user : this.props.user,
-			text : this.state.text
+			user : this.props.user.name,
+			text : this.state.text,
+			targetUser: 'frome anywhere'
 		}
-		this.props.onMessageSubmit(message);	
+		this.props.onMessageSubmit(message);
 		this.setState({ text: '' });
 	},
 
@@ -104,7 +126,7 @@ var ChangeNameForm = React.createClass({
 	handleSubmit(e) {
 		e.preventDefault();
 		var newName = this.state.newName;
-		this.props.onChangeName(newName);	
+		this.props.onChangeName(newName);
 		this.setState({ newName: '' });
 	},
 
@@ -115,9 +137,9 @@ var ChangeNameForm = React.createClass({
 				<form onSubmit={this.handleSubmit}>
 					<input
 						onChange={this.onKey}
-						value={this.state.newName} 
+						value={this.state.newName}
 					/>
-				</form>	
+				</form>
 			</div>
 		);
 	}
@@ -126,25 +148,35 @@ var ChangeNameForm = React.createClass({
 var ChatApp = React.createClass({
 
 	getInitialState() {
-		return {users: [], messages:[], text: ''};
+		return {users: [], messages:[], text: '', targetUser: ''};
 	},
 
 	componentDidMount() {
 		socket.on('init', this._initialize);
+		socket.on('request-chat', this._handleRequestChat);
 		socket.on('send:message', this._messageRecieve);
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
 		socket.on('change:name', this._userChangedName);
 	},
 
+	_handleRequestChat(data) {
+		console.log(data);
+		alert('ada yg ngajak chat');
+	},
+
 	_initialize(data) {
-		var {users, name} = data;
-		this.setState({users, user: name});
+
+		var users = data.users;
+		var clientId = data.clientId;
+		var currentUser = data.name;
+		this.setState({users, user: currentUser});
 	},
 
 	_messageRecieve(message) {
 		var {messages} = this.state;
 		messages.push(message);
+
 		this.setState({messages});
 	},
 
@@ -184,9 +216,14 @@ var ChatApp = React.createClass({
 	},
 
 	handleMessageSubmit(message) {
+
 		var {messages} = this.state;
+
+
 		messages.push(message);
 		this.setState({messages});
+
+
 		socket.emit('send:message', message);
 	},
 
@@ -204,10 +241,11 @@ var ChatApp = React.createClass({
 	},
 
 	render() {
+
 		return (
 			<div>
 				<UsersList
-					users={this.state.users}
+					users={this.state.users} currentUser={this.state.user}
 				/>
 				<MessageList
 					messages={this.state.messages}
@@ -215,6 +253,7 @@ var ChatApp = React.createClass({
 				<MessageForm
 					onMessageSubmit={this.handleMessageSubmit}
 					user={this.state.user}
+
 				/>
 				<ChangeNameForm
 					onChangeName={this.handleChangeName}

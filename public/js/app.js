@@ -8,7 +8,21 @@ var socket = io.connect();
 var UsersList = React.createClass({
 	displayName: 'UsersList',
 
+	handleClick: function handleClick(e) {
+		// console.log('here',e.target.id);
+
+		socket.emit("request-chat", {
+			target: e.target.id,
+			source: this.props.currentUser.id
+		});
+	},
+
 	render: function render() {
+		var _this = this;
+
+		var userRendered;
+
+		console.log(this.props.users);
 		return React.createElement(
 			'div',
 			{ className: 'users' },
@@ -21,10 +35,22 @@ var UsersList = React.createClass({
 				'ul',
 				null,
 				this.props.users.map(function (user, i) {
+
+					if (user.id === _this.props.currentUser.id) {
+						return React.createElement(
+							'li',
+							{ key: user.id },
+							user.name
+						);
+					}
 					return React.createElement(
 						'li',
-						{ key: i },
-						user
+						{ key: user.id },
+						React.createElement(
+							'a',
+							{ href: '#', id: user.id, onClick: _this.handleClick },
+							user.name
+						)
 					);
 				})
 			)
@@ -87,8 +113,9 @@ var MessageForm = React.createClass({
 	handleSubmit: function handleSubmit(e) {
 		e.preventDefault();
 		var message = {
-			user: this.props.user,
-			text: this.state.text
+			user: this.props.user.name,
+			text: this.state.text,
+			targetUser: 'frome anywhere'
 		};
 		this.props.onMessageSubmit(message);
 		this.setState({ text: '' });
@@ -162,28 +189,36 @@ var ChatApp = React.createClass({
 	displayName: 'ChatApp',
 
 	getInitialState: function getInitialState() {
-		return { users: [], messages: [], text: '' };
+		return { users: [], messages: [], text: '', targetUser: '' };
 	},
 
 	componentDidMount: function componentDidMount() {
 		socket.on('init', this._initialize);
+		socket.on('request-chat', this._handleRequestChat);
 		socket.on('send:message', this._messageRecieve);
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
 		socket.on('change:name', this._userChangedName);
 	},
 
-	_initialize: function _initialize(data) {
-		var users = data.users;
-		var name = data.name;
+	_handleRequestChat: function _handleRequestChat(data) {
+		console.log(data);
+		alert('ada yg ngajak chat');
+	},
 
-		this.setState({ users: users, user: name });
+	_initialize: function _initialize(data) {
+
+		var users = data.users;
+		var clientId = data.clientId;
+		var currentUser = data.name;
+		this.setState({ users: users, user: currentUser });
 	},
 
 	_messageRecieve: function _messageRecieve(message) {
 		var messages = this.state.messages;
 
 		messages.push(message);
+
 		this.setState({ messages: messages });
 	},
 
@@ -195,7 +230,7 @@ var ChatApp = React.createClass({
 
 		users.push(name);
 		messages.push({
-			user: 'APLICATION BOT',
+			user: 'APPLICATION BOT',
 			text: name + ' Joined'
 		});
 		this.setState({ users: users, messages: messages });
@@ -210,7 +245,7 @@ var ChatApp = React.createClass({
 		var index = users.indexOf(name);
 		users.splice(index, 1);
 		messages.push({
-			user: 'APLICATION BOT',
+			user: 'APPLICATION BOT',
 			text: name + ' Left'
 		});
 		this.setState({ users: users, messages: messages });
@@ -226,7 +261,7 @@ var ChatApp = React.createClass({
 		var index = users.indexOf(oldName);
 		users.splice(index, 1, newName);
 		messages.push({
-			user: 'APLICATION BOT',
+			user: 'APPLICATION BOT',
 			text: 'Change Name : ' + oldName + ' ==> ' + newName
 		});
 		this.setState({ users: users, messages: messages });
@@ -237,31 +272,33 @@ var ChatApp = React.createClass({
 
 		messages.push(message);
 		this.setState({ messages: messages });
+
 		socket.emit('send:message', message);
 	},
 
 	handleChangeName: function handleChangeName(newName) {
-		var _this = this;
+		var _this2 = this;
 
 		var oldName = this.state.user;
 		socket.emit('change:name', { name: newName }, function (result) {
 			if (!result) {
 				return alert('There was an error changing your name');
 			}
-			var users = _this.state.users;
+			var users = _this2.state.users;
 
 			var index = users.indexOf(oldName);
 			users.splice(index, 1, newName);
-			_this.setState({ users: users, user: newName });
+			_this2.setState({ users: users, user: newName });
 		});
 	},
 
 	render: function render() {
+
 		return React.createElement(
 			'div',
 			null,
 			React.createElement(UsersList, {
-				users: this.state.users
+				users: this.state.users, currentUser: this.state.user
 			}),
 			React.createElement(MessageList, {
 				messages: this.state.messages
@@ -269,6 +306,7 @@ var ChatApp = React.createClass({
 			React.createElement(MessageForm, {
 				onMessageSubmit: this.handleMessageSubmit,
 				user: this.state.user
+
 			}),
 			React.createElement(ChangeNameForm, {
 				onChangeName: this.handleChangeName
@@ -281,14 +319,103 @@ React.render(React.createElement(ChatApp, null), document.getElementById('app'))
 
 },{"react":157}],2:[function(require,module,exports){
 // shim for using process in browser
-
 var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
 var queue = [];
 var draining = false;
 var currentQueue;
 var queueIndex = -1;
 
 function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
     draining = false;
     if (currentQueue.length) {
         queue = currentQueue.concat(queue);
@@ -304,7 +431,7 @@ function drainQueue() {
     if (draining) {
         return;
     }
-    var timeout = setTimeout(cleanUpNextTick);
+    var timeout = runTimeout(cleanUpNextTick);
     draining = true;
 
     var len = queue.length;
@@ -312,14 +439,16 @@ function drainQueue() {
         currentQueue = queue;
         queue = [];
         while (++queueIndex < len) {
-            currentQueue[queueIndex].run();
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
         }
         queueIndex = -1;
         len = queue.length;
     }
     currentQueue = null;
     draining = false;
-    clearTimeout(timeout);
+    runClearTimeout(timeout);
 }
 
 process.nextTick = function (fun) {
@@ -331,7 +460,7 @@ process.nextTick = function (fun) {
     }
     queue.push(new Item(fun, args));
     if (queue.length === 1 && !draining) {
-        setTimeout(drainQueue, 0);
+        runTimeout(drainQueue);
     }
 };
 
@@ -364,7 +493,6 @@ process.binding = function (name) {
     throw new Error('process.binding is not supported');
 };
 
-// TODO(shtylman)
 process.cwd = function () { return '/' };
 process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
