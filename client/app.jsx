@@ -344,9 +344,9 @@ var ChatApp = React.createClass({
 
 	handleMessageSubmit(message) {
 
-		if (!userShared.length) {
-			return;
-		}
+		// if (!userShared.length) {
+		// 	return;
+		// }
 
 		var {messages} = this.state;
 
