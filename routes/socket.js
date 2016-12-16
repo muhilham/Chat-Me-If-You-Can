@@ -97,7 +97,7 @@ module.exports = function (socket) {
 
     // console.log(data);
     socket.broadcast.to(data.target).emit('send:message', {
-      user: name,
+      user: name.name,
       text: data.text
     });
   });

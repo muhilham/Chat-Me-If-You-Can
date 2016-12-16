@@ -104,13 +104,25 @@ var MessageList = React.createClass({
 				<h2> Conversation: </h2>
 				{
 					this.props.messages.map((message, i) => {
+
+						if (typeof message.user != 'undefined'){
+							console.log('here comes',message.user);
+
+							// ("name" in message.user)
+							// var username = message.user.name ? message.user.name : message.user;
+							return (
+								<Message
+									key={i}
+									user={message.user}
+									text={message.text}
+								/>
+							);
+						}
+
 						return (
-							<Message
-								key={i}
-								user={message.user}
-								text={message.text}
-							/>
+							<span></span>
 						);
+
 					})
 				}
 			</div>
@@ -131,6 +143,8 @@ var MessageForm = React.createClass({
 			text : this.state.text,
 			targetUser: 'frome anywhere'
 		}
+
+		console.log('nnonoono  ',this.props.user);
 		this.props.onMessageSubmit(message);
 		this.setState({ text: '' });
 	},
@@ -251,6 +265,7 @@ var ChatApp = React.createClass({
 		var bytes  = CryptoJS.AES.decrypt(message.text, userShared[0].sharedKey.toString());
 		var plaintext = bytes.toString(CryptoJS.enc.Utf8);
 
+		console.log('chipertext receiver', message.text);
 		holderOutput.text = plaintext;
 		holder.text = plaintext;
 
@@ -267,10 +282,10 @@ var ChatApp = React.createClass({
 		var {users, messages} = this.state;
 		var {name} = data;
 		users.push(name);
-		messages.push({
-			user: 'APPLICATION BOT',
-			text : name +' Joined'
-		});
+		// messages.push({
+		// 	user: 'APPLICATION BOT',
+		// 	text : name +' Joined'
+		// });
 		this.setState({users, messages});
 	},
 
@@ -329,6 +344,10 @@ var ChatApp = React.createClass({
 
 	handleMessageSubmit(message) {
 
+		if (!userShared.length) {
+			return;
+		}
+
 		var {messages} = this.state;
 
 
@@ -336,6 +355,11 @@ var ChatApp = React.createClass({
 		this.setState({messages});
 
 		var ciphertext = CryptoJS.AES.encrypt(message.text, userShared[0].sharedKey.toString());
+
+		console.log('ciphertext sender',ciphertext.toString());
+
+		// console.log(userShared);
+
 
 		socket.emit('send:message', {
 			text: ciphertext.toString(),

@@ -132,11 +132,20 @@ var MessageList = React.createClass({
 				' Conversation: '
 			),
 			this.props.messages.map(function (message, i) {
-				return React.createElement(Message, {
-					key: i,
-					user: message.user,
-					text: message.text
-				});
+
+				if (typeof message.user != 'undefined') {
+					console.log('here comes', message.user);
+
+					// ("name" in message.user)
+					// var username = message.user.name ? message.user.name : message.user;
+					return React.createElement(Message, {
+						key: i,
+						user: message.user,
+						text: message.text
+					});
+				}
+
+				return React.createElement('span', null);
 			})
 		);
 	}
@@ -156,6 +165,8 @@ var MessageForm = React.createClass({
 			text: this.state.text,
 			targetUser: 'frome anywhere'
 		};
+
+		console.log('nnonoono  ', this.props.user);
 		this.props.onMessageSubmit(message);
 		this.setState({ text: '' });
 	},
@@ -257,6 +268,7 @@ var ChatApp = React.createClass({
 			return userKeys.target.id === data.source;
 		});
 
+		console.log('sharedKey _approvedChat', userApproval[0]['private'] * data.publicKeyApproval);
 		userShared.push({
 			target: data.source,
 			sharedKey: userApproval[0]['private'] * data.publicKeyApproval
@@ -289,6 +301,7 @@ var ChatApp = React.createClass({
 		var bytes = CryptoJS.AES.decrypt(message.text, userShared[0].sharedKey.toString());
 		var plaintext = bytes.toString(CryptoJS.enc.Utf8);
 
+		console.log('chipertext receiver', message.text);
 		holderOutput.text = plaintext;
 		holder.text = plaintext;
 
@@ -309,10 +322,10 @@ var ChatApp = React.createClass({
 		var name = data.name;
 
 		users.push(name);
-		messages.push({
-			user: 'APPLICATION BOT',
-			text: name + ' Joined'
-		});
+		// messages.push({
+		// 	user: 'APPLICATION BOT',
+		// 	text : name +' Joined'
+		// });
 		this.setState({ users: users, messages: messages });
 	},
 
@@ -358,6 +371,7 @@ var ChatApp = React.createClass({
 			targetId: this.state.requester.id
 		};
 
+		console.log('approval sharedKey ', privateKeyApproval * this.state.requester.nxKey);
 		userShared.push({
 			target: this.state.requester.id,
 			sharedKey: privateKeyApproval * this.state.requester.nxKey
@@ -376,12 +390,21 @@ var ChatApp = React.createClass({
 	},
 
 	handleMessageSubmit: function handleMessageSubmit(message) {
+
+		if (!userShared.length) {
+			return;
+		}
+
 		var messages = this.state.messages;
 
 		messages.push(message);
 		this.setState({ messages: messages });
 
 		var ciphertext = CryptoJS.AES.encrypt(message.text, userShared[0].sharedKey.toString());
+
+		console.log('ciphertext sender', ciphertext.toString());
+
+		// console.log(userShared);
 
 		socket.emit('send:message', {
 			text: ciphertext.toString(),
