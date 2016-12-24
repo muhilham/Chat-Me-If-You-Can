@@ -56,7 +56,6 @@ var UsersList = React.createClass({
 	},
 
 	render() {
-		var userRendered;
 
 		return (
 			<div className='users'>
@@ -199,6 +198,45 @@ var ChangeNameForm = React.createClass({
 	}
 });
 
+var InputEmail = React.createClass({
+	getInitialState() {
+		return {
+			isEmail: false,
+			email: ''
+		};
+	},
+
+	enterMail(e) {
+		e.preventDefault();
+		this.props.onEmailSubmit(this.state.email);
+	},
+
+	changeHandler(e) {
+		this.setState({ email : e.target.value });
+	},
+
+	render() {
+		return (
+			<div>
+				<Modal show={ !this.props.isEmail } onHide={this.close}>
+          <Modal.Header>
+            <Modal.Title>Enter Your Email</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <input
+							type="email"
+							onChange={this.changeHandler}
+							value={this.state.email} />
+          </Modal.Body>
+          <Modal.Footer>
+            <Button onClick={this.enterMail}>submit</Button>
+          </Modal.Footer>
+        </Modal>
+			</div>
+		)
+	}
+});
+
 var ChatApp = React.createClass({
 
 	getInitialState() {
@@ -209,7 +247,8 @@ var ChatApp = React.createClass({
 			targetUser: '',
 			showModal: false,
 			requester: {},
-			keys: {}
+			keys: {},
+			isEmail: false
 		};
 	},
 
@@ -344,10 +383,6 @@ var ChatApp = React.createClass({
 
 	handleMessageSubmit(message) {
 
-		// if (!userShared.length) {
-		// 	return;
-		// }
-
 		var {messages} = this.state;
 
 
@@ -368,6 +403,10 @@ var ChatApp = React.createClass({
 		});
 	},
 
+	handleEmailSubmit(email) {
+		console.log('here' , email);
+	},
+
 	handleChangeName(newName) {
 		var oldName = this.state.user;
 		socket.emit('change:name', { name : newName}, (result) => {
@@ -385,6 +424,11 @@ var ChatApp = React.createClass({
 
 		return (
 			<div>
+
+				<InputEmail
+					isEmail={this.state.isEmail}
+					onEmailSubmit={this.handleEmailSubmit}
+				/>
 
 				<Modal show={this.state.showModal} onHide={this.close}>
           <Modal.Header closeButton>
