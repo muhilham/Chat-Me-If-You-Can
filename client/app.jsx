@@ -46,7 +46,7 @@ var UsersList = React.createClass({
 
 
 
-		// socket.emit("request-chat", param);
+		socket.emit("request-chat", param);
 	},
 
 	render() {
@@ -254,29 +254,18 @@ var ChatApp = React.createClass({
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
 		socket.on('change:name', this._userChangedName);
-		socket.on('change:email', this._userChangedEmail);
 		socket.on('chat-approved', this._approvedChat);
 	},
 
 	_approvedChat(data) {
 
-		console.log('_approvedChat' ,data);
-
-		var userApproval = lodash.filter(pk, function(userKeys){
-		  return userKeys.target.id === data.source;
-		});
-
-		console.log('sharedKey _approvedChat' , userApproval[0].private * data.publicKeyApproval);
 		userShared.push({
-			target: data.source,
-			sharedKey: userApproval[0].private * data.publicKeyApproval
+			target: data.source
 		});
 
 	},
 
 	_handleRequestChat(data) {
-		console.log(data);
-
 		this.setState({
 			showModal: true ,
 			requester: data
@@ -323,15 +312,12 @@ var ChatApp = React.createClass({
 
 	_userJoined(data) {
 
-		console.log('are you here', data);
 		var {users, messages} = this.state;
 		var {name} = data;
 		users.push(name);
-		// messages.push({
-		// 	user: 'APPLICATION BOT',
-		// 	text : name +' Joined'
-		// });
-		this.setState({users, messages});
+
+		this.setState({users});
+
 	},
 
 	_userLeft(data) {
@@ -358,17 +344,6 @@ var ChatApp = React.createClass({
 		this.setState({users, messages});
 	},
 
-	_userChangedEmail(data) {
-		var {users} = this.state;
-		var index = users.indexOf(data.id);
-		users.splice(index, 1, data);
-		console.log('users here', this.state.users);
-		this.setState({
-			users
-		});
-		console.log('users here2', this.state.users);
-	},
-
 	approve(){
 
 		var privateKeyApproval = generatePK();
@@ -376,17 +351,13 @@ var ChatApp = React.createClass({
 		var publicKeyApproval = generatePublic(privateKeyApproval, this.state.requester.nKey);
 
 		var param = {
-			publicKeyApproval: publicKeyApproval,
 			targetId: this.state.requester.id
 		};
 
-		console.log('approval sharedKey ' , privateKeyApproval * this.state.requester.nxKey);
 		userShared.push({
-			target: this.state.requester.id,
-			sharedKey: privateKeyApproval * this.state.requester.nxKey
+			target: this.state.requester.id
 		});
 
-		console.log('param approval ',param);
 		socket.emit("approve-chat", param);
     this.setState({
 			showModal: false ,
@@ -420,27 +391,13 @@ var ChatApp = React.createClass({
 	},
 
 	handleEmailSubmit(email) {
-		console.log('handleEmailSubmit', email);
 		var newUser = {};
 		newUser.email = email;
 
-		console.log(newUser);
 		socket.emit('change:email', newUser, (result) => {
 			if(!result) {
 				return alert('There was an error changing your email');
 			}
-
-			// var {users} = this.state;
-			// var index = users.indexOf(newUser.id);
-			// users.splice(index, 1, newUser);
-			// console.log('what happened before', this.state.users);
-			// this.setState({
-			// 	users,
-			// 	user: newUser,
-			// 	isEmail: true
-			// });
-			// console.log('what happened here', this.state.users);
-
 		});
 
 	},

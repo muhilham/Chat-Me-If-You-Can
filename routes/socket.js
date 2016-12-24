@@ -106,10 +106,7 @@ function userConnected(socket) {
     var namesIndex = lodash.findIndex(userNames.get(), {id: data.source});
 
     var source = {
-      id: data.source,
-      name: userNames.get()[namesIndex].name,
-      nKey: data.target.nKey,
-      nxKey: data.target.nxKey
+      id: data.source
     };
 
 
@@ -161,8 +158,21 @@ function userConnected(socket) {
   });
 
   socket.on('approve-chat', function (data) {
+
+    let connectedUsers = userNames.get();
+
+    const requesterData = lodash.find(connectedUsers, function (user) {
+      return user.id === data.targetId
+    });
+
+    const approvalData = lodash.find(connectedUsers, function (user) {
+      return user.id === socket.client.id
+    });
+
+    console.log('requesterData',requesterData);
+    console.log('approvalData',approvalData);
+
     socket.broadcast.to(data.targetId).emit('chat-approved', {
-      publicKeyApproval: data.publicKeyApproval,
       source: socket.client.id
     });
   });

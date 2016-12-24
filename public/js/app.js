@@ -46,7 +46,7 @@ var UsersList = React.createClass({
 			source: this.props.currentUser.id
 		};
 
-		// socket.emit("request-chat", param);
+		socket.emit("request-chat", param);
 	},
 
 	render: function render() {
@@ -306,7 +306,6 @@ var ChatApp = React.createClass({
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
 		socket.on('change:name', this._userChangedName);
-		socket.on('change:email', this._userChangedEmail);
 		socket.on('chat-approved', this._approvedChat);
 	},
 
@@ -314,19 +313,19 @@ var ChatApp = React.createClass({
 
 		console.log('_approvedChat', data);
 
-		var userApproval = lodash.filter(pk, function (userKeys) {
-			return userKeys.target.id === data.source;
-		});
-
-		console.log('sharedKey _approvedChat', userApproval[0]['private'] * data.publicKeyApproval);
-		userShared.push({
-			target: data.source,
-			sharedKey: userApproval[0]['private'] * data.publicKeyApproval
-		});
+		// var userApproval = lodash.filter(pk, function(userKeys){
+		//   return userKeys.target.id === data.source;
+		// });
+		//
+		// userShared.push({
+		// 	target: data.source,
+		// 	sharedKey: userApproval[0].private * data.publicKeyApproval
+		// });
 	},
 
 	_handleRequestChat: function _handleRequestChat(data) {
-		console.log(data);
+		console.log('connected user', this.state.users);
+		console.log('_handleRequestChat', data);
 
 		this.setState({
 			showModal: true,
@@ -387,6 +386,8 @@ var ChatApp = React.createClass({
 		// 	text : name +' Joined'
 		// });
 		this.setState({ users: users, messages: messages });
+		console.log('user just joined, who', this.state.users);
+		console.log('response d', data);
 	},
 
 	_userLeft: function _userLeft(data) {
@@ -418,18 +419,6 @@ var ChatApp = React.createClass({
 			text: 'Change Name : ' + oldName + ' ==> ' + newName
 		});
 		this.setState({ users: users, messages: messages });
-	},
-
-	_userChangedEmail: function _userChangedEmail(data) {
-		var users = this.state.users;
-
-		var index = users.indexOf(data.id);
-		users.splice(index, 1, data);
-		console.log('users here', this.state.users);
-		this.setState({
-			users: users
-		});
-		console.log('users here2', this.state.users);
 	},
 
 	approve: function approve() {
