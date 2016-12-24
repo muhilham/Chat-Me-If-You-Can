@@ -14,11 +14,22 @@ var userNames = (function () {
 
     names.push({
       registered : user.name,
-      id: user.id
+      id: user.id,
+      email: ''
     });
     return true;
 
   };
+
+  function claimEmail(user) {
+
+    names.push({
+      registered : user.name,
+      id: user.id,
+      email: user.email
+    });
+    return true;
+  }
 
   // find the lowest unused "guest" name and claim it
   var getGuestName = function (clientId) {
@@ -28,7 +39,8 @@ var userNames = (function () {
     do {
       name = {
         name: 'Guest ' + nextUserId,
-        id: clientId
+        id: clientId,
+        email: ''
       };
       nextUserId += 1;
     } while (!claim(name));
@@ -43,7 +55,8 @@ var userNames = (function () {
       if (typeof names[i] != 'undefined'){
         res.push({
           name: names[i].registered,
-          id: names[i].id
+          id: names[i].id,
+          email: names[i].email
         });
       }
     }
@@ -56,35 +69,29 @@ var userNames = (function () {
 
     if (isRegistered) {
       var namesIndex = lodash.findIndex(names, {id: userId});
-      return delete names[namesIndex];
+
+      return lodash.remove(names, function (name) {
+        return userId === name.id;
+      });
     }
 
   };
 
   return {
     claim: claim,
+    claimEmail: claimEmail,
     free: free,
     get: get,
     getGuestName: getGuestName
   };
 }());
 
-// export function for listening to the socket
-module.exports = function (socket) {
+function userConnected(socket) {
 
-  var name = userNames.getGuestName(socket.client.id);
 
   // send the new user their name and a list of users
-  socket.emit('init', {
-    name: name,
-    users: userNames.get(),
-    clientId: socket.client.id
-  });
-
+  var name = userNames.getGuestName(socket.client.id);;
   // notify other clients that a new user has joined
-  socket.broadcast.emit('user:join', {
-    name: name
-  });
 
   // broadcast a user's message to other users
   socket.on('send:message', function (data) {
@@ -128,6 +135,31 @@ module.exports = function (socket) {
     }
   });
 
+  socket.on('change:email', function (data, fn) {
+
+    name.email = data.email;
+    userNames.free(socket.client.id);
+
+    let newUser = {
+      id:name.id,
+      name: name.name,
+      email: name.email
+    };
+    if (userNames.claimEmail(newUser)) {
+      let users = userNames.get();
+      socket.emit('init', {
+        name: name,
+        users: users,
+        clientId: socket.client.id,
+        email: data.email
+      });
+      socket.broadcast.emit('user:join', {
+        name: name
+      });
+      fn(true);
+    }
+  });
+
   socket.on('approve-chat', function (data) {
     socket.broadcast.to(data.targetId).emit('chat-approved', {
       publicKeyApproval: data.publicKeyApproval,
@@ -142,4 +174,7 @@ module.exports = function (socket) {
     });
     userNames.free(socket.client.id);
   });
-};
+}
+
+// export function for listening to the socket
+module.exports = userConnected;

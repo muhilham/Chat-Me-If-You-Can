@@ -41,26 +41,16 @@ var UsersList = React.createClass({
 		var param = {
 			target: {
 				id: e.target.id,
-				nKey: nKey,
-				nxKey: generatePublic(privateKey, nKey)
+				user: e.target.user
 			},
 			source: this.props.currentUser.id
 		};
 
-		pk.push({
-			target: param.target,
-			'private': privateKey
-		});
-
-		console.log(param);
-
-		socket.emit("request-chat", param);
+		// socket.emit("request-chat", param);
 	},
 
 	render: function render() {
 		var _this = this;
-
-		var userRendered;
 
 		return React.createElement(
 			'div',
@@ -74,23 +64,25 @@ var UsersList = React.createClass({
 				'ul',
 				null,
 				this.props.users.map(function (user, i) {
+					if (user.email) {
 
-					if (user.id === _this.props.currentUser.id) {
+						if (user.id === _this.props.currentUser.id) {
+							return React.createElement(
+								'li',
+								{ key: user.id },
+								user.name
+							);
+						}
 						return React.createElement(
 							'li',
 							{ key: user.id },
-							user.name
+							React.createElement(
+								'a',
+								{ href: '#', id: user.id, user: user, onClick: _this.handleClick },
+								user.name
+							)
 						);
 					}
-					return React.createElement(
-						'li',
-						{ key: user.id },
-						React.createElement(
-							'a',
-							{ href: '#', id: user.id, onClick: _this.handleClick },
-							user.name
-						)
-					);
 				})
 			)
 		);
@@ -134,7 +126,6 @@ var MessageList = React.createClass({
 			this.props.messages.map(function (message, i) {
 
 				if (typeof message.user != 'undefined') {
-					console.log('here comes', message.user);
 
 					// ("name" in message.user)
 					// var username = message.user.name ? message.user.name : message.user;
@@ -166,7 +157,6 @@ var MessageForm = React.createClass({
 			targetUser: 'frome anywhere'
 		};
 
-		console.log('nnonoono  ', this.props.user);
 		this.props.onMessageSubmit(message);
 		this.setState({ text: '' });
 	},
@@ -235,6 +225,64 @@ var ChangeNameForm = React.createClass({
 	}
 });
 
+var InputEmail = React.createClass({
+	displayName: 'InputEmail',
+
+	getInitialState: function getInitialState() {
+		return {
+			isEmail: false,
+			email: ''
+		};
+	},
+
+	enterMail: function enterMail(e) {
+		e.preventDefault();
+		console.log('enterMail', this.state.email);
+		this.props.onEmailSubmit(this.state.email);
+	},
+
+	changeHandler: function changeHandler(e) {
+		this.setState({ email: e.target.value });
+	},
+
+	render: function render() {
+		return React.createElement(
+			'div',
+			null,
+			React.createElement(
+				Modal,
+				{ show: !this.props.isEmail, onHide: this.close },
+				React.createElement(
+					Modal.Header,
+					null,
+					React.createElement(
+						Modal.Title,
+						null,
+						'Enter Your Email'
+					)
+				),
+				React.createElement(
+					Modal.Body,
+					null,
+					React.createElement('input', {
+						type: 'email',
+						onChange: this.changeHandler,
+						value: this.state.email })
+				),
+				React.createElement(
+					Modal.Footer,
+					null,
+					React.createElement(
+						Button,
+						{ onClick: this.enterMail },
+						'submit'
+					)
+				)
+			)
+		);
+	}
+});
+
 var ChatApp = React.createClass({
 	displayName: 'ChatApp',
 
@@ -246,7 +294,8 @@ var ChatApp = React.createClass({
 			targetUser: '',
 			showModal: false,
 			requester: {},
-			keys: {}
+			keys: {},
+			isEmail: false
 		};
 	},
 
@@ -257,6 +306,7 @@ var ChatApp = React.createClass({
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
 		socket.on('change:name', this._userChangedName);
+		socket.on('change:email', this._userChangedEmail);
 		socket.on('chat-approved', this._approvedChat);
 	},
 
@@ -289,7 +339,15 @@ var ChatApp = React.createClass({
 		var users = data.users;
 		var clientId = data.clientId;
 		var currentUser = data.name;
-		this.setState({ users: users, user: currentUser });
+		// currentUser.email = data.email;
+		console.log('users got me here', users);
+		console.log('currentUser', currentUser);
+
+		this.setState({
+			users: users,
+			user: currentUser,
+			isEmail: true
+		});
 	},
 
 	_messageRecieve: function _messageRecieve(message) {
@@ -316,6 +374,8 @@ var ChatApp = React.createClass({
 	},
 
 	_userJoined: function _userJoined(data) {
+
+		console.log('are you here', data);
 		var _state = this.state;
 		var users = _state.users;
 		var messages = _state.messages;
@@ -360,6 +420,18 @@ var ChatApp = React.createClass({
 		this.setState({ users: users, messages: messages });
 	},
 
+	_userChangedEmail: function _userChangedEmail(data) {
+		var users = this.state.users;
+
+		var index = users.indexOf(data.id);
+		users.splice(index, 1, data);
+		console.log('users here', this.state.users);
+		this.setState({
+			users: users
+		});
+		console.log('users here2', this.state.users);
+	},
+
 	approve: function approve() {
 
 		var privateKeyApproval = generatePK();
@@ -390,11 +462,6 @@ var ChatApp = React.createClass({
 	},
 
 	handleMessageSubmit: function handleMessageSubmit(message) {
-
-		// if (!userShared.length) {
-		// 	return;
-		// }
-
 		var messages = this.state.messages;
 
 		messages.push(message);
@@ -404,12 +471,34 @@ var ChatApp = React.createClass({
 
 		console.log('ciphertext sender', ciphertext.toString());
 
-		// console.log(userShared);
-
 		socket.emit('send:message', {
 			text: ciphertext.toString(),
 			target: userShared[0].target,
 			user: message.user
+		});
+	},
+
+	handleEmailSubmit: function handleEmailSubmit(email) {
+		console.log('handleEmailSubmit', email);
+		var newUser = {};
+		newUser.email = email;
+
+		console.log(newUser);
+		socket.emit('change:email', newUser, function (result) {
+			if (!result) {
+				return alert('There was an error changing your email');
+			}
+
+			// var {users} = this.state;
+			// var index = users.indexOf(newUser.id);
+			// users.splice(index, 1, newUser);
+			// console.log('what happened before', this.state.users);
+			// this.setState({
+			// 	users,
+			// 	user: newUser,
+			// 	isEmail: true
+			// });
+			// console.log('what happened here', this.state.users);
 		});
 	},
 
@@ -434,6 +523,10 @@ var ChatApp = React.createClass({
 		return React.createElement(
 			'div',
 			null,
+			React.createElement(InputEmail, {
+				isEmail: this.state.isEmail,
+				onEmailSubmit: this.handleEmailSubmit
+			}),
 			React.createElement(
 				Modal,
 				{ show: this.state.showModal, onHide: this.close },

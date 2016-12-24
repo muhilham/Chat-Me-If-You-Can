@@ -39,43 +39,39 @@ var UsersList = React.createClass({
 		var param = {
 			target: {
 				id: e.target.id,
-				nKey: nKey,
-				nxKey: generatePublic(privateKey, nKey)
+				user: e.target.user,
 			},
 			source: this.props.currentUser.id
 		};
 
-		pk.push({
-			target: param.target,
-			private: privateKey
-		});
 
-		console.log(param);
 
-		socket.emit("request-chat", param);
+		// socket.emit("request-chat", param);
 	},
 
 	render() {
-
 		return (
 			<div className='users'>
 				<h3> Online Users </h3>
 				<ul>
 					{
 						this.props.users.map((user, i) => {
+							if (user.email) {
 
-							if (user.id === this.props.currentUser.id) {
+								if (user.id === this.props.currentUser.id) {
+									return (
+										<li key={user.id}>
+											{user.name}
+										</li>
+									);
+								}
 								return (
 									<li key={user.id}>
-										{user.name}
+										<a href="#" id={user.id} user={user} onClick={this.handleClick}>{user.name}</a>
 									</li>
 								);
 							}
-							return (
-								<li key={user.id}>
-									<a href="#" id={user.id} onClick={this.handleClick}>{user.name}</a>
-								</li>
-							);
+
 						})
 					}
 				</ul>
@@ -105,7 +101,6 @@ var MessageList = React.createClass({
 					this.props.messages.map((message, i) => {
 
 						if (typeof message.user != 'undefined'){
-							console.log('here comes',message.user);
 
 							// ("name" in message.user)
 							// var username = message.user.name ? message.user.name : message.user;
@@ -143,7 +138,6 @@ var MessageForm = React.createClass({
 			targetUser: 'frome anywhere'
 		}
 
-		console.log('nnonoono  ',this.props.user);
 		this.props.onMessageSubmit(message);
 		this.setState({ text: '' });
 	},
@@ -208,6 +202,7 @@ var InputEmail = React.createClass({
 
 	enterMail(e) {
 		e.preventDefault();
+		console.log('enterMail',this.state.email);
 		this.props.onEmailSubmit(this.state.email);
 	},
 
@@ -259,6 +254,7 @@ var ChatApp = React.createClass({
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
 		socket.on('change:name', this._userChangedName);
+		socket.on('change:email', this._userChangedEmail);
 		socket.on('chat-approved', this._approvedChat);
 	},
 
@@ -292,7 +288,15 @@ var ChatApp = React.createClass({
 		var users = data.users;
 		var clientId = data.clientId;
 		var currentUser = data.name;
-		this.setState({users, user: currentUser});
+		// currentUser.email = data.email;
+		console.log('users got me here',users);
+		console.log('currentUser',currentUser);
+
+		this.setState({
+			users,
+			user: currentUser,
+			isEmail: true
+		});
 	},
 
 	_messageRecieve(message) {
@@ -318,6 +322,8 @@ var ChatApp = React.createClass({
 	},
 
 	_userJoined(data) {
+
+		console.log('are you here', data);
 		var {users, messages} = this.state;
 		var {name} = data;
 		users.push(name);
@@ -350,6 +356,17 @@ var ChatApp = React.createClass({
 			text : 'Change Name : ' + oldName + ' ==> '+ newName
 		});
 		this.setState({users, messages});
+	},
+
+	_userChangedEmail(data) {
+		var {users} = this.state;
+		var index = users.indexOf(data.id);
+		users.splice(index, 1, data);
+		console.log('users here', this.state.users);
+		this.setState({
+			users
+		});
+		console.log('users here2', this.state.users);
 	},
 
 	approve(){
@@ -393,7 +410,6 @@ var ChatApp = React.createClass({
 
 		console.log('ciphertext sender',ciphertext.toString());
 
-		// console.log(userShared);
 
 
 		socket.emit('send:message', {
@@ -404,7 +420,29 @@ var ChatApp = React.createClass({
 	},
 
 	handleEmailSubmit(email) {
-		console.log('here' , email);
+		console.log('handleEmailSubmit', email);
+		var newUser = {};
+		newUser.email = email;
+
+		console.log(newUser);
+		socket.emit('change:email', newUser, (result) => {
+			if(!result) {
+				return alert('There was an error changing your email');
+			}
+
+			// var {users} = this.state;
+			// var index = users.indexOf(newUser.id);
+			// users.splice(index, 1, newUser);
+			// console.log('what happened before', this.state.users);
+			// this.setState({
+			// 	users,
+			// 	user: newUser,
+			// 	isEmail: true
+			// });
+			// console.log('what happened here', this.state.users);
+
+		});
+
 	},
 
 	handleChangeName(newName) {
