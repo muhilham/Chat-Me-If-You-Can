@@ -44,8 +44,6 @@ var UsersList = React.createClass({
 			source: this.props.currentUser.id
 		};
 
-
-
 		socket.emit("request-chat", param);
 	},
 
@@ -58,12 +56,14 @@ var UsersList = React.createClass({
 						this.props.users.map((user, i) => {
 							if (user.email) {
 
-								if (user.id === this.props.currentUser.id) {
-									return (
-										<li key={user.id}>
-											{user.name}
-										</li>
-									);
+								if (this.props.currentUser) {
+									if (user.id === this.props.currentUser.id) {
+										return (
+											<li key={user.id}>
+												{user.name}
+											</li>
+										);
+									}
 								}
 								return (
 									<li key={user.id}>
@@ -236,7 +236,20 @@ var InputSentN = React.createClass({
 	render() {
 		return(
 			<div>
-
+				<Modal show={this.props.isInputN} onHide={this.close}>
+					<Modal.Header closeButton>
+						<Modal.Title>Input shared Number</Modal.Title>
+					</Modal.Header>
+					<Modal.Body>
+						<input
+							type="text"
+							 />
+					</Modal.Body>
+					<Modal.Footer>
+						<Button onClick={this.approve}>Approve</Button>
+						<Button onClick={this.reject}>Reject</Button>
+					</Modal.Footer>
+				</Modal>
 			</div>
 		);
 	}
@@ -434,6 +447,10 @@ var ChatApp = React.createClass({
 				<InputEmail
 					isEmail={this.state.isEmail}
 					onEmailSubmit={this.handleEmailSubmit}
+				/>
+
+				<InputSentN
+					isInputN={this.state.isInputN}
 				/>
 
 				<Modal show={this.state.showModal} onHide={this.close}>

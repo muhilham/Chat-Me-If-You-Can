@@ -206,10 +206,10 @@ function userConnected(socket) {
     socket.broadcast.to(data.targetId).emit('chat-approved', {
       source: socket.client.id
     });
-    socket.broadcast.to(socket.client.id).emit('chat-approved', {
+
+    socket.emit('chat-approved', {
       source: socket.client.id
     });
-    
   });
 
   // clean up when a user leaves, and broadcast it to other users
