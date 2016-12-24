@@ -232,6 +232,16 @@ var InputEmail = React.createClass({
 	}
 });
 
+var InputSentN = React.createClass({
+	render() {
+		return(
+			<div>
+
+			</div>
+		);
+	}
+});
+
 var ChatApp = React.createClass({
 
 	getInitialState() {
@@ -243,7 +253,8 @@ var ChatApp = React.createClass({
 			showModal: false,
 			requester: {},
 			keys: {},
-			isEmail: false
+			isEmail: false,
+			isInputN: false
 		};
 	},
 
@@ -259,8 +270,8 @@ var ChatApp = React.createClass({
 
 	_approvedChat(data) {
 
-		userShared.push({
-			target: data.source
+		this.setState({
+			isInputN: true
 		});
 
 	},

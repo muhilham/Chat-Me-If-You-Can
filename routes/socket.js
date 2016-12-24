@@ -1,5 +1,35 @@
 var lodash = require('lodash');
 
+var nodemailer = require('nodemailer');
+
+function sendEmail(from, to, message) {
+
+  const sentTo = to.trim();
+  console.log(sentTo);
+  const name = 'Chat-Me-If-You-Can';
+  const smtpTransport = nodemailer.createTransport("SMTP",{
+    service: "Gmail",
+    auth: {
+      user: "satriabajahitam512@gmail.com",
+      pass: "sandibaru512"
+    }
+  });
+
+  var mailOptions = {
+    from: from,
+    to: sentTo,
+    subject: 'To be input',
+    text: message
+  }
+  smtpTransport.sendMail(mailOptions, function(error, response){
+     if(error){
+         console.log(error);
+     }else{
+        console.log(response);
+     }
+  });
+}
+
 // Keep track of which names are used so that there are no duplicates
 var userNames = (function () {
   var names = [];
@@ -169,12 +199,17 @@ function userConnected(socket) {
       return user.id === socket.client.id
     });
 
-    console.log('requesterData',requesterData);
-    console.log('approvalData',approvalData);
+    const nKey = Math.random();
+    sendEmail(approvalData.name, approvalData.email, 'Input this to chat with ' + requesterData.email + ' :  ' + nKey);
+    sendEmail(requesterData.name, requesterData.email, 'Input this to chat with ' + approvalData.email + ' :  ' + nKey);
 
     socket.broadcast.to(data.targetId).emit('chat-approved', {
       source: socket.client.id
     });
+    socket.broadcast.to(socket.client.id).emit('chat-approved', {
+      source: socket.client.id
+    });
+    
   });
 
   // clean up when a user leaves, and broadcast it to other users
