@@ -5,7 +5,6 @@ var nodemailer = require('nodemailer');
 function sendEmail(from, to, message) {
 
   const sentTo = to.trim();
-  console.log(sentTo);
   const name = 'Chat-Me-If-You-Can';
   const smtpTransport = nodemailer.createTransport("SMTP",{
     service: "Gmail",
@@ -120,7 +119,7 @@ function userConnected(socket) {
 
 
   // send the new user their name and a list of users
-  var name = userNames.getGuestName(socket.client.id);;
+  var name = userNames.getGuestName(socket.client.id);
   // notify other clients that a new user has joined
 
   // broadcast a user's message to other users
@@ -187,6 +186,14 @@ function userConnected(socket) {
     }
   });
 
+  socket.on('send:publicKey', function (data) {
+
+    socket.broadcast.to(data.targetId).emit('send:publicKey', {
+      publicKeyApproval: data.publicKeyApproval,
+      id: socket.client.id
+    });
+  });
+
   socket.on('approve-chat', function (data) {
 
     let connectedUsers = userNames.get();
@@ -208,7 +215,7 @@ function userConnected(socket) {
     });
 
     socket.emit('chat-approved', {
-      source: socket.client.id
+      source: data.targetId
     });
   });
 
