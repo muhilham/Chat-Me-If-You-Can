@@ -441,6 +441,9 @@ var ChatApp = React.createClass({
 	handleNSubmit(nValue,  privateKeyApproval, publicKeyApproval) {
 		let target = this.state.targetParam;
 
+		console.log('nValue : ' ,nValue);
+		console.log('publicKeyApproval : ' ,publicKeyApproval);
+		// console.log('privateKeyApproval : ' ,privateKeyApproval);
 		target.isWaiting = false;
 		target.privateKeyApproval = privateKeyApproval;
 		target.nValue = nValue;
@@ -487,6 +490,7 @@ var ChatApp = React.createClass({
 
 			targetParam.sharedKey = targetParam.publicKeyApproval * targetParam.privateKeyApproval;
 
+			console.log('sharedKey : ', targetParam.sharedKey);
 			this.setState({
 				targetParam: targetParam
 			});

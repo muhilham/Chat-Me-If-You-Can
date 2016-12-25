@@ -10,8 +10,6 @@ var socket = io.connect();
 
 var pk = [];
 
-var userShared = [];
-
 var Modal = require('react-bootstrap/lib/Modal');
 var Button = require('react-bootstrap/lib/Button');
 
@@ -23,10 +21,6 @@ function generatePublic(n, pk) {
 	return n * pk;
 }
 
-function generateN() {
-	return getRandomInt(21, 434);
-}
-
 function generatePK() {
 	return getRandomInt(12, 33);
 }
@@ -35,8 +29,6 @@ var UsersList = React.createClass({
 	displayName: 'UsersList',
 
 	handleClick: function handleClick(e) {
-		var privateKey = generatePK();
-		var nKey = generateN();
 
 		var param = {
 			target: {
@@ -66,12 +58,14 @@ var UsersList = React.createClass({
 				this.props.users.map(function (user, i) {
 					if (user.email) {
 
-						if (user.id === _this.props.currentUser.id) {
-							return React.createElement(
-								'li',
-								{ key: user.id },
-								user.name
-							);
+						if (_this.props.currentUser) {
+							if (user.id === _this.props.currentUser.id) {
+								return React.createElement(
+									'li',
+									{ key: user.id },
+									user.name
+								);
+							}
 						}
 						return React.createElement(
 							'li',
@@ -127,8 +121,6 @@ var MessageList = React.createClass({
 
 				if (typeof message.user != 'undefined') {
 
-					// ("name" in message.user)
-					// var username = message.user.name ? message.user.name : message.user;
 					return React.createElement(Message, {
 						key: i,
 						user: message.user,
@@ -150,6 +142,10 @@ var MessageForm = React.createClass({
 	},
 
 	handleSubmit: function handleSubmit(e) {
+
+		console.log('something here ? ', this.props.user);
+		console.log('something here 2 ? ', this.state.text);
+
 		e.preventDefault();
 		var message = {
 			user: this.props.user.name,
@@ -283,6 +279,70 @@ var InputEmail = React.createClass({
 	}
 });
 
+var InputSentN = React.createClass({
+	displayName: 'InputSentN',
+
+	getInitialState: function getInitialState() {
+		return {
+			nValue: ''
+		};
+	},
+
+	enterN: function enterN(e) {
+		e.preventDefault();
+		var privateKeyApproval = generatePK();
+
+		var publicKeyApproval = generatePublic(privateKeyApproval, this.state.nValue);
+
+		console.log('privateKeyApproval', privateKeyApproval);
+		console.log('publicKeyApproval', publicKeyApproval);
+
+		this.props.onNSubmit(this.state.nValue, privateKeyApproval, publicKeyApproval);
+	},
+
+	changeHandler: function changeHandler(e) {
+		this.setState({ nValue: e.target.value });
+	},
+
+	render: function render() {
+		return React.createElement(
+			'div',
+			null,
+			React.createElement(
+				Modal,
+				{ show: this.props.isInputN, onHide: this.close },
+				React.createElement(
+					Modal.Header,
+					{ closeButton: true },
+					React.createElement(
+						Modal.Title,
+						null,
+						'Input shared Number'
+					)
+				),
+				React.createElement(
+					Modal.Body,
+					null,
+					React.createElement('input', {
+						type: 'text',
+						onChange: this.changeHandler,
+						value: this.state.nValue
+					})
+				),
+				React.createElement(
+					Modal.Footer,
+					null,
+					React.createElement(
+						Button,
+						{ onClick: this.enterN },
+						'Submit'
+					)
+				)
+			)
+		);
+	}
+});
+
 var ChatApp = React.createClass({
 	displayName: 'ChatApp',
 
@@ -295,7 +355,9 @@ var ChatApp = React.createClass({
 			showModal: false,
 			requester: {},
 			keys: {},
-			isEmail: false
+			isEmail: false,
+			isInputN: false,
+			targetParam: {}
 		};
 	},
 
@@ -305,28 +367,36 @@ var ChatApp = React.createClass({
 		socket.on('send:message', this._messageRecieve);
 		socket.on('user:join', this._userJoined);
 		socket.on('user:left', this._userLeft);
-		socket.on('change:name', this._userChangedName);
 		socket.on('chat-approved', this._approvedChat);
+		socket.on('send:publicKey', this._generateSharedKey);
+	},
+
+	_generateSharedKey: function _generateSharedKey(_ref) {
+		var publicKeyApproval = _ref.publicKeyApproval;
+		var id = _ref.id;
+
+		console.log('source id' + id, publicKeyApproval);
+		var targetParam = this.state.targetParam;
+		targetParam.publicKeyApproval = publicKeyApproval;
+		this.setState({
+			targetParam: targetParam
+		});
+		console.log('this.state.targetParam ', this.state.targetParam);
 	},
 
 	_approvedChat: function _approvedChat(data) {
 
 		console.log('_approvedChat', data);
-
-		// var userApproval = lodash.filter(pk, function(userKeys){
-		//   return userKeys.target.id === data.source;
-		// });
-		//
-		// userShared.push({
-		// 	target: data.source,
-		// 	sharedKey: userApproval[0].private * data.publicKeyApproval
-		// });
+		this.setState({
+			isInputN: true,
+			targetParam: {
+				id: data.source,
+				isWaiting: true
+			}
+		});
 	},
 
 	_handleRequestChat: function _handleRequestChat(data) {
-		console.log('connected user', this.state.users);
-		console.log('_handleRequestChat', data);
-
 		this.setState({
 			showModal: true,
 			requester: data
@@ -338,9 +408,6 @@ var ChatApp = React.createClass({
 		var users = data.users;
 		var clientId = data.clientId;
 		var currentUser = data.name;
-		// currentUser.email = data.email;
-		console.log('users got me here', users);
-		console.log('currentUser', currentUser);
 
 		this.setState({
 			users: users,
@@ -355,7 +422,7 @@ var ChatApp = React.createClass({
 		var holder = this.state;
 		var holderOutput = message;
 
-		var bytes = CryptoJS.AES.decrypt(message.text, userShared[0].sharedKey.toString());
+		var bytes = CryptoJS.AES.decrypt(message.text, this.state.targetParam.sharedKey.toString());
 		var plaintext = bytes.toString(CryptoJS.enc.Utf8);
 
 		console.log('chipertext receiver', message.text);
@@ -373,21 +440,14 @@ var ChatApp = React.createClass({
 	},
 
 	_userJoined: function _userJoined(data) {
-
-		console.log('are you here', data);
 		var _state = this.state;
 		var users = _state.users;
 		var messages = _state.messages;
 		var name = data.name;
 
 		users.push(name);
-		// messages.push({
-		// 	user: 'APPLICATION BOT',
-		// 	text : name +' Joined'
-		// });
-		this.setState({ users: users, messages: messages });
-		console.log('user just joined, who', this.state.users);
-		console.log('response d', data);
+
+		this.setState({ users: users });
 	},
 
 	_userLeft: function _userLeft(data) {
@@ -423,26 +483,13 @@ var ChatApp = React.createClass({
 
 	approve: function approve() {
 
-		var privateKeyApproval = generatePK();
-
-		var publicKeyApproval = generatePublic(privateKeyApproval, this.state.requester.nKey);
-
 		var param = {
-			publicKeyApproval: publicKeyApproval,
 			targetId: this.state.requester.id
 		};
 
-		console.log('approval sharedKey ', privateKeyApproval * this.state.requester.nxKey);
-		userShared.push({
-			target: this.state.requester.id,
-			sharedKey: privateKeyApproval * this.state.requester.nxKey
-		});
-
-		console.log('param approval ', param);
 		socket.emit("approve-chat", param);
 		this.setState({
-			showModal: false,
-			keys: param
+			showModal: false
 		});
 	},
 
@@ -454,40 +501,48 @@ var ChatApp = React.createClass({
 		var messages = this.state.messages;
 
 		messages.push(message);
-		this.setState({ messages: messages });
 
-		var ciphertext = CryptoJS.AES.encrypt(message.text, userShared[0].sharedKey.toString());
+		console.log('are aer rea', message);
+		console.log('get here', this.state.targetParam);
+		this.setState({ messages: messages });
+		var ciphertext = CryptoJS.AES.encrypt(message.text, this.state.targetParam.sharedKey.toString());
 
 		console.log('ciphertext sender', ciphertext.toString());
 
 		socket.emit('send:message', {
 			text: ciphertext.toString(),
-			target: userShared[0].target,
+			target: this.state.targetParam.id,
 			user: message.user
 		});
 	},
 
 	handleEmailSubmit: function handleEmailSubmit(email) {
-		console.log('handleEmailSubmit', email);
 		var newUser = {};
 		newUser.email = email;
 
-		console.log(newUser);
 		socket.emit('change:email', newUser, function (result) {
 			if (!result) {
 				return alert('There was an error changing your email');
 			}
+		});
+	},
 
-			// var {users} = this.state;
-			// var index = users.indexOf(newUser.id);
-			// users.splice(index, 1, newUser);
-			// console.log('what happened before', this.state.users);
-			// this.setState({
-			// 	users,
-			// 	user: newUser,
-			// 	isEmail: true
-			// });
-			// console.log('what happened here', this.state.users);
+	handleNSubmit: function handleNSubmit(nValue, privateKeyApproval, publicKeyApproval) {
+		var target = this.state.targetParam;
+
+		target.isWaiting = false;
+		target.privateKeyApproval = privateKeyApproval;
+		target.nValue = nValue;
+
+		socket.emit('send:publicKey', {
+			publicKeyApproval: publicKeyApproval,
+			targetId: target.id
+		});
+
+		console.log('target to be saved', target);
+		this.setState({
+			targetParam: target,
+			isInputN: false
 		});
 	},
 
@@ -507,14 +562,58 @@ var ChatApp = React.createClass({
 		});
 	},
 
+	shouldComponentUpdate: function shouldComponentUpdate(prevProps, prevState) {
+		var targetParam = prevState.targetParam;
+
+		console.log('componentDidUpdate prevState ', targetParam);
+		var isNExist = lodash.has(targetParam, 'nValue');
+		var isPublicKeyExist = lodash.has(targetParam, 'publicKeyApproval');
+		var isSharedKey = lodash.has(targetParam, 'sharedKey');
+		if (isNExist) {
+			console.log('N already exist', targetParam.nValue);
+		}
+		if (isPublicKeyExist) {
+			console.log('publicKeyApproval already exist', targetParam.publicKeyApproval);
+		}
+
+		if (isPublicKeyExist && isNExist && !isSharedKey) {
+			console.log('publicKeyApproval and N already exist', {
+				publicKeyApproval: targetParam.publicKeyApproval,
+				nValue: targetParam.nValue
+			});
+
+			targetParam.sharedKey = targetParam.publicKeyApproval * targetParam.privateKeyApproval;
+			console.log('equal value ', targetParam);
+
+			this.setState({
+				targetParam: targetParam
+			});
+		}
+		return true;
+	},
+
 	render: function render() {
 
+		var isSharedKey = lodash.has(this.state.targetParam, 'sharedKey');
+
+		var listOfMessage = isSharedKey ? React.createElement(MessageList, { messages: this.state.messages }) : React.createElement('div', null);
+		var formMessage = isSharedKey ? React.createElement(MessageForm, { onMessageSubmit: this.handleMessageSubmit, user: this.state.user }) : React.createElement('div', null);
+
+		console.log('isSharedKey', isSharedKey);
+
+		console.log('comes from render', this.state.targetParam);
 		return React.createElement(
 			'div',
 			null,
 			React.createElement(InputEmail, {
 				isEmail: this.state.isEmail,
 				onEmailSubmit: this.handleEmailSubmit
+
+			}),
+			React.createElement(InputSentN, {
+				userTarget: this.state.targetParam,
+				isInputN: this.state.isInputN,
+				onNSubmit: this.handleNSubmit
 			}),
 			React.createElement(
 				Modal,
@@ -552,14 +651,8 @@ var ChatApp = React.createClass({
 			React.createElement(UsersList, {
 				users: this.state.users, currentUser: this.state.user
 			}),
-			React.createElement(MessageList, {
-				messages: this.state.messages
-			}),
-			React.createElement(MessageForm, {
-				onMessageSubmit: this.handleMessageSubmit,
-				user: this.state.user
-
-			})
+			listOfMessage,
+			formMessage
 		);
 	}
 });

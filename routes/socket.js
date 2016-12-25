@@ -194,6 +194,10 @@ function userConnected(socket) {
     });
   });
 
+  function getRandomArbitrary(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
   socket.on('approve-chat', function (data) {
 
     let connectedUsers = userNames.get();
@@ -206,7 +210,7 @@ function userConnected(socket) {
       return user.id === socket.client.id
     });
 
-    const nKey = Math.random();
+    const nKey = getRandomArbitrary(1, 15);
     sendEmail(approvalData.name, approvalData.email, 'Input this to chat with ' + requesterData.email + ' :  ' + nKey);
     sendEmail(requesterData.name, requesterData.email, 'Input this to chat with ' + approvalData.email + ' :  ' + nKey);
 
