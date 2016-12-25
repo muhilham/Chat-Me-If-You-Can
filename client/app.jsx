@@ -484,9 +484,6 @@ var ChatApp = React.createClass({
 		}
 
 		if (isPublicKeyExist && isNExist && !isSharedKey) {
-				publicKeyApproval: targetParam.publicKeyApproval,
-				nValue: targetParam.nValue
-			});
 
 			targetParam.sharedKey = targetParam.publicKeyApproval * targetParam.privateKeyApproval;
 

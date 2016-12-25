@@ -143,9 +143,6 @@ var MessageForm = React.createClass({
 
 	handleSubmit: function handleSubmit(e) {
 
-		console.log('something here ? ', this.props.user);
-		console.log('something here 2 ? ', this.state.text);
-
 		e.preventDefault();
 		var message = {
 			user: this.props.user.name,
@@ -233,7 +230,6 @@ var InputEmail = React.createClass({
 
 	enterMail: function enterMail(e) {
 		e.preventDefault();
-		console.log('enterMail', this.state.email);
 		this.props.onEmailSubmit(this.state.email);
 	},
 
@@ -294,9 +290,6 @@ var InputSentN = React.createClass({
 
 		var publicKeyApproval = generatePublic(privateKeyApproval, this.state.nValue);
 
-		console.log('privateKeyApproval', privateKeyApproval);
-		console.log('publicKeyApproval', publicKeyApproval);
-
 		this.props.onNSubmit(this.state.nValue, privateKeyApproval, publicKeyApproval);
 	},
 
@@ -317,7 +310,7 @@ var InputSentN = React.createClass({
 					React.createElement(
 						Modal.Title,
 						null,
-						'Input shared Number'
+						'Input Value -N'
 					)
 				),
 				React.createElement(
@@ -375,18 +368,15 @@ var ChatApp = React.createClass({
 		var publicKeyApproval = _ref.publicKeyApproval;
 		var id = _ref.id;
 
-		console.log('source id' + id, publicKeyApproval);
 		var targetParam = this.state.targetParam;
 		targetParam.publicKeyApproval = publicKeyApproval;
 		this.setState({
 			targetParam: targetParam
 		});
-		console.log('this.state.targetParam ', this.state.targetParam);
 	},
 
 	_approvedChat: function _approvedChat(data) {
 
-		console.log('_approvedChat', data);
 		this.setState({
 			isInputN: true,
 			targetParam: {
@@ -418,14 +408,12 @@ var ChatApp = React.createClass({
 
 	_messageRecieve: function _messageRecieve(message) {
 
-		console.log('message arrive', message);
 		var holder = this.state;
 		var holderOutput = message;
 
 		var bytes = CryptoJS.AES.decrypt(message.text, this.state.targetParam.sharedKey.toString());
 		var plaintext = bytes.toString(CryptoJS.enc.Utf8);
 
-		console.log('chipertext receiver', message.text);
 		holderOutput.text = plaintext;
 		holder.text = plaintext;
 
@@ -435,7 +423,6 @@ var ChatApp = React.createClass({
 
 		messages.push(holderOutput);
 
-		console.log(messages);
 		this.setState({ messages: messages });
 	},
 
@@ -502,12 +489,8 @@ var ChatApp = React.createClass({
 
 		messages.push(message);
 
-		console.log('are aer rea', message);
-		console.log('get here', this.state.targetParam);
 		this.setState({ messages: messages });
 		var ciphertext = CryptoJS.AES.encrypt(message.text, this.state.targetParam.sharedKey.toString());
-
-		console.log('ciphertext sender', ciphertext.toString());
 
 		socket.emit('send:message', {
 			text: ciphertext.toString(),
@@ -530,6 +513,9 @@ var ChatApp = React.createClass({
 	handleNSubmit: function handleNSubmit(nValue, privateKeyApproval, publicKeyApproval) {
 		var target = this.state.targetParam;
 
+		console.log('nValue : ', nValue);
+		console.log('publicKeyApproval : ', publicKeyApproval);
+		// console.log('privateKeyApproval : ' ,privateKeyApproval);
 		target.isWaiting = false;
 		target.privateKeyApproval = privateKeyApproval;
 		target.nValue = nValue;
@@ -539,7 +525,6 @@ var ChatApp = React.createClass({
 			targetId: target.id
 		});
 
-		console.log('target to be saved', target);
 		this.setState({
 			targetParam: target,
 			isInputN: false
@@ -565,26 +550,17 @@ var ChatApp = React.createClass({
 	shouldComponentUpdate: function shouldComponentUpdate(prevProps, prevState) {
 		var targetParam = prevState.targetParam;
 
-		console.log('componentDidUpdate prevState ', targetParam);
 		var isNExist = lodash.has(targetParam, 'nValue');
 		var isPublicKeyExist = lodash.has(targetParam, 'publicKeyApproval');
 		var isSharedKey = lodash.has(targetParam, 'sharedKey');
-		if (isNExist) {
-			console.log('N already exist', targetParam.nValue);
-		}
-		if (isPublicKeyExist) {
-			console.log('publicKeyApproval already exist', targetParam.publicKeyApproval);
-		}
+		if (isNExist) {}
+		if (isPublicKeyExist) {}
 
 		if (isPublicKeyExist && isNExist && !isSharedKey) {
-			console.log('publicKeyApproval and N already exist', {
-				publicKeyApproval: targetParam.publicKeyApproval,
-				nValue: targetParam.nValue
-			});
 
 			targetParam.sharedKey = targetParam.publicKeyApproval * targetParam.privateKeyApproval;
-			console.log('equal value ', targetParam);
 
+			console.log('sharedKey : ', targetParam.sharedKey);
 			this.setState({
 				targetParam: targetParam
 			});
@@ -599,9 +575,6 @@ var ChatApp = React.createClass({
 		var listOfMessage = isSharedKey ? React.createElement(MessageList, { messages: this.state.messages }) : React.createElement('div', null);
 		var formMessage = isSharedKey ? React.createElement(MessageForm, { onMessageSubmit: this.handleMessageSubmit, user: this.state.user }) : React.createElement('div', null);
 
-		console.log('isSharedKey', isSharedKey);
-
-		console.log('comes from render', this.state.targetParam);
 		return React.createElement(
 			'div',
 			null,
